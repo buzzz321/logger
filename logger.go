@@ -2,48 +2,64 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"log"
 	"os"
 	"strings"
 )
 
-func getToken(line string, start string, stop string) (int, string) {
-	tStart := strings.Index(line, start) + len(start)
-	tStop := strings.Index(line[tStart:], stop) + tStart
-	token := line[tStart:tStop]
+type parser struct {
+	advance int
+	err     error
+}
 
-	//fmt.Printf("tStart = %d tStop = %d\n", tStart+0, tStop+0)
-	return tStop, token
+func (p *parser) getToken(line string, start string, stop string) string {
+	var retVal string
+	if p.err == nil {
+		tStart := strings.Index(line[p.advance:], start) + len(start) + p.advance
+		tStop := strings.Index(line[tStart:], stop) + tStart
+		//fmt.Printf("tStart = %d tStop = %d\n", tStart+0, tStop+0)
+		if tStart == -1 || tStop == -1 {
+			p.err = errors.New("item not found")
+			return ""
+		}
+		p.advance = tStop
+		retVal = line[tStart:tStop]
+	}
+	return retVal
+}
+
+func (p *parser) parseLine(line string) string {
+	timeStamp := p.getToken(line, "[", "]")
+	logType := p.getToken(line, ":", ":")
+	cpuID := p.getToken(line, "cpu_id = ", " }")
+	fileName := p.getToken(line, "file = \"", "\"")
+	lineNo := p.getToken(line, "line = ", " ,")
+	msg := p.getToken(line, "msg = \"", "\" }")
+	p.advance = 0
+
+	if p.err == nil {
+		//fmt.Println(timeStamp, logType, cpuID, fileName, lineNo, msg)
+		return fmt.Sprintf("%s %s %s %s %s %s\n", timeStamp, logType, cpuID, fileName, lineNo, msg)
+	}
+	return (line)
 }
 
 func main() {
-	fmt.Println("vim-go")
-	file, err := os.Open("../../../c++/logger/log.log")
+	file, err := os.Open("../../../c++/logger/log-small.log")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
+	parse := parser{}
 	for scanner.Scan() {
-		advance := 0
 		line := scanner.Text()
 
-		tStop, timeStamp := getToken(line, "[", "]")
-		advance += tStop
-		tStop, logType := getToken(line[advance:], ":", ":")
-		advance += tStop
-		tStop, cpuId := getToken(line[advance:], "cpu_id = ", " }")
-		advance += tStop
-		tStop, fileName := getToken(line[advance:], "file = \"", "\"")
-		advance += tStop
-		tStop, lineNo := getToken(line[advance:], "line = ", " ,")
-		advance += tStop
-		tStop, msg := getToken(line[advance:], "msg = \"", "\" }")
-		advance += tStop
+		fmt.Println(parse.parseLine(line))
 
-		fmt.Println(timeStamp, logType, cpuId, fileName, lineNo, msg)
 	}
 
 	if err := scanner.Err(); err != nil {
