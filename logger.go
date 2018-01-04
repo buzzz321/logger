@@ -47,7 +47,8 @@ func (p *parser) parseLine(line string) string {
 }
 
 func main() {
-	file, err := os.Open("../../../c++/logger/log.log")
+	fileName := os.Args[1]
+	file, err := os.Open(fileName)
 	if err != nil {
 		log.Fatal(err)
 	}
